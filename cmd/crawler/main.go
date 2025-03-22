@@ -8,8 +8,23 @@ import (
 	"search/internal/task"
 )
 
+const (
+	crawlerTimeout = time.Minute
+
+	linksChanCapacity    = 1000
+	pipelineChanCapacity = 1000
+
+	numParallelFetchers = 20
+
+	numDocumentWords = 1000
+	numDocuments     = 200
+
+	dataDirPath = "./data/1"
+	indexPath   = "index.txt"
+)
+
 func main() {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), crawlerTimeout)
 	defer cancel()
 
 	links := []string{
@@ -17,7 +32,7 @@ func main() {
 		"https://ru.wikipedia.org/wiki/Французский_язык",
 	}
 
-	linksChan := make(chan string, 1000)
+	linksChan := make(chan string, linksChanCapacity)
 	for _, link := range links {
 		linksChan <- link
 	}
@@ -25,19 +40,19 @@ func main() {
 	stopChan := make(chan struct{})
 
 	_ = pipe.StartPipeline(ctx,
-		task.NewTaskGenerator(1000, linksChan, stopChan),
+		task.NewTaskGenerator(pipelineChanCapacity, linksChan, stopChan),
 		pipe.NewParallelPipe(
-			task.NewFetchPipe(), 20,
+			task.NewFetchPipe(), numParallelFetchers,
 		),
 		task.NewParsePipe(),
-		task.NewFilterSmallDocumentsPipe(1000),
+		task.NewFilterSmallDocumentsPipe(numDocumentWords),
 		task.NewFilterCyrillicPipe(),
 		pipe.NewPipeFromAsyncPipe(
 			task.NewFeedLinksAsyncPipe(linksChan),
 		),
-		task.NewDocumentCounterPipe(200, "./data/1", stopChan),
-		task.NewIndexerPipe("index.txt"),
-		task.NewSavePipe("./data/1"),
+		task.NewDocumentCounterPipe(numDocuments, dataDirPath, stopChan),
+		task.NewIndexerPipe(indexPath),
+		task.NewSavePipe(dataDirPath),
 		pipe.NewPipeFromAsyncPipe(
 			task.NewLogAsyncPipe(),
 		),
