@@ -7,6 +7,7 @@ import (
 	"sync/atomic"
 
 	"search/internal/pipe"
+	"search/internal/pkg"
 )
 
 var nextID atomic.Int64
@@ -31,7 +32,7 @@ func NewTaskGenerator(chanCapacity int, linksChan <-chan string, stopChan <-chan
 						continue
 					}
 
-					link = prepareLink(link)
+					link = pkg.PrepareLink(link)
 					if seen[link] {
 						continue
 					}
@@ -56,11 +57,4 @@ func isValidLink(link string) bool {
 
 	parsedURL, err := url.Parse(link)
 	return err == nil && parsedURL.Scheme != "" && parsedURL.Host != ""
-}
-
-func prepareLink(link string) string {
-	parsedURL, _ := url.Parse(link)
-	parsedURL.RawQuery = ""
-	parsedURL.Fragment = ""
-	return parsedURL.String()
 }

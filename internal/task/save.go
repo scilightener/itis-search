@@ -13,6 +13,15 @@ import (
 func NewSavePipe(dirPath string) pipe.Pipe[*Task] {
 	const op = "task.save.NewSavePipe"
 
+	err := emptyDir(dirPath)
+	if err != nil {
+		panic(err)
+	}
+	err = ensureDirExists(dirPath)
+	if err != nil {
+		panic(err)
+	}
+
 	return func(ctx context.Context, in <-chan *Task) <-chan *Task {
 		out := make(chan *Task, cap(in))
 
@@ -43,11 +52,6 @@ func NewSavePipe(dirPath string) pipe.Pipe[*Task] {
 }
 
 func saveDocument(t *Task, dirPath string) error {
-	err := ensureDirExists(dirPath)
-	if err != nil {
-		return err
-	}
-
 	fileName := strconv.FormatInt(t.ID, 10) + ".txt"
 	filePath := path.Join(dirPath, fileName)
 	if err := os.WriteFile(filePath, t.Document.Text, 0644); err != nil {
@@ -61,6 +65,15 @@ func ensureDirExists(dirPath string) error {
 	err := os.MkdirAll(dirPath, 0774)
 	if err != nil {
 		return fmt.Errorf("failed to create directory: %w", err)
+	}
+
+	return nil
+}
+
+func emptyDir(dirPath string) error {
+	err := os.RemoveAll(dirPath)
+	if err != nil {
+		return fmt.Errorf("failed to remove directory: %w", err)
 	}
 
 	return nil

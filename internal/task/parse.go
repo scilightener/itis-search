@@ -10,6 +10,7 @@ import (
 	"golang.org/x/net/html"
 
 	"search/internal/pipe"
+	"search/internal/pkg"
 )
 
 func NewParsePipe() pipe.Pipe[*Task] {
@@ -92,7 +93,11 @@ func extractContent(doc *html.Node, baseURL *url.URL) (string, []string, error) 
 				if attr.Key == "href" {
 					link := attr.Val
 					if !isImageLink(link) {
-						absoluteLink := resolveURL(baseURL, link)
+						absoluteLink, err := resolveURL(baseURL, link)
+						if err != nil {
+							break
+						}
+						absoluteLink = pkg.PrepareLink(absoluteLink)
 						links[absoluteLink] = true
 					}
 					break
@@ -131,9 +136,10 @@ func replaceHtmlEntities(text string) string {
 	return strings.ReplaceAll(text, "\u00a0", " ")
 }
 
+var imageExtensions = []string{".png", ".jpg", ".jpeg", ".gif", ".bmp", ".tiff", ".svg", ".webp"}
+
 // isImageLink checks if a link is an image link.
 func isImageLink(link string) bool {
-	imageExtensions := []string{".jpg", ".png", ".gif"}
 	for _, ext := range imageExtensions {
 		if strings.HasSuffix(link, ext) {
 			return true
@@ -143,10 +149,11 @@ func isImageLink(link string) bool {
 }
 
 // resolveURL resolves a URL relative to a base URL.
-func resolveURL(baseURL *url.URL, link string) string {
+func resolveURL(baseURL *url.URL, link string) (string, error) {
 	parsedLink, err := url.Parse(link)
 	if err != nil {
-		return link
+		return "", err
 	}
-	return baseURL.ResolveReference(parsedLink).String()
+
+	return baseURL.ResolveReference(parsedLink).String(), nil
 }

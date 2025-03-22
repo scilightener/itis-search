@@ -1,6 +1,9 @@
 package pipe
 
-import "context"
+import (
+	"context"
+	"sync"
+)
 
 // Pipe is a function that takes a channel, processes its values,
 // and returns a new channel with the processed values from the old one.
@@ -47,16 +50,15 @@ func NewDiscardPipe[T any]() Pipe[T] {
 func NewParallelPipe[T any](p Pipe[T], numWorkers int) Pipe[T] {
 	return func(ctx context.Context, in <-chan T) <-chan T {
 		out := make(chan T, cap(in))
-		stop := make(chan struct{})
+		var wg sync.WaitGroup
 
+		wg.Add(numWorkers)
 		for i := 0; i < numWorkers; i++ {
 			go func() {
+				defer wg.Done()
 				for v := range p(ctx, in) {
 					select {
 					case <-ctx.Done():
-						stop <- struct{}{}
-						return
-					case <-stop:
 						return
 					default:
 						out <- v
@@ -66,7 +68,7 @@ func NewParallelPipe[T any](p Pipe[T], numWorkers int) Pipe[T] {
 		}
 
 		go func() {
-			<-stop
+			wg.Wait()
 			close(out)
 		}()
 
@@ -78,6 +80,7 @@ func NewPipeFromAsyncPipe[T any](asyncPipe AsyncPipe[T]) Pipe[T] {
 	return func(ctx context.Context, in <-chan T) <-chan T {
 		out := make(chan T, cap(in))
 		duplicateOut := make(chan T, cap(in))
+
 		go func() {
 			defer close(out)
 			defer close(duplicateOut)

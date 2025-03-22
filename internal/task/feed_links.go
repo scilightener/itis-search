@@ -2,7 +2,6 @@ package task
 
 import (
 	"context"
-
 	"search/internal/pipe"
 )
 
@@ -14,8 +13,9 @@ func NewFeedLinksAsyncPipe(linksChan chan<- string) pipe.AsyncPipe[*Task] {
 					break
 				}
 
-				for _, link := range t.Document.Links {
-					linksChan <- link
+				maxLinks := min(len(t.Document.Links), cap(linksChan)-len(linksChan))
+				for i := range maxLinks {
+					linksChan <- t.Document.Links[i]
 				}
 			}
 		}()

@@ -3,7 +3,6 @@ package task
 import (
 	"context"
 	"fmt"
-	"strconv"
 	"sync/atomic"
 
 	"search/internal/pipe"
@@ -24,7 +23,7 @@ func NewLogAsyncPipe() pipe.AsyncPipe[*Task] {
 				}
 
 				curIdx := n.Add(1)
-				fmt.Println(strconv.FormatInt(curIdx, 10) + " " + t.String())
+				fmt.Printf("%d %s\n", curIdx, t.String())
 			}
 		}()
 	}
