@@ -17,7 +17,7 @@ func main() {
 		"https://ru.wikipedia.org/wiki/Французский_язык",
 	}
 
-	linksChan := make(chan string, 100)
+	linksChan := make(chan string, 10000)
 	for _, link := range links {
 		linksChan <- link
 	}
@@ -25,13 +25,14 @@ func main() {
 	stopChan := make(chan struct{})
 
 	_ = pipe.StartPipeline(ctx,
-		task.NewTaskGenerator(100, linksChan, stopChan),
+		task.NewTaskGenerator(10000, linksChan, stopChan),
 		pipe.NewParallelPipe(
-			task.NewFetchPipe(), 20,
+			task.NewFetchPipe(), 50,
 		),
 		task.NewParsePipe(),
 		task.NewFilterSmallDocumentsPipe(1000),
-		task.NewDocumentCounterPipe(200, "./data/1", stopChan),
+		task.NewFilterCyrillicPipe(),
+		task.NewDocumentCounterPipe(100, "./data/1", stopChan),
 		task.NewIndexerPipe("index.txt"),
 		pipe.NewPipeFromAsyncPipe(
 			task.NewFeedLinksAsyncPipe(linksChan),

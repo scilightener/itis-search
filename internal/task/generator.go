@@ -61,5 +61,6 @@ func isValidLink(link string) bool {
 func prepareLink(link string) string {
 	parsedURL, _ := url.Parse(link)
 	parsedURL.RawQuery = ""
+	parsedURL.Fragment = ""
 	return parsedURL.String()
 }
