@@ -10,8 +10,8 @@ import (
 	"search/internal/pipe"
 )
 
-func NewSavePipe(dirPath string) pipe.Pipe[*Task] {
-	const op = "task.save.NewSavePipe"
+func NewSaveHandler(dirPath string) pipe.Handler[*Task] {
+	const op = "task.save.NewSaveHandler"
 
 	err := emptyDir(dirPath)
 	if err != nil {
@@ -22,32 +22,17 @@ func NewSavePipe(dirPath string) pipe.Pipe[*Task] {
 		panic(err)
 	}
 
-	return func(ctx context.Context, in <-chan *Task) <-chan *Task {
-		out := make(chan *Task, cap(in))
+	return func(ctx context.Context, t *Task) *Task {
+		if t.Finished {
+			return t
+		}
 
-		go func() {
-			defer close(out)
+		err := saveDocument(t, dirPath)
+		if err != nil {
+			t = t.Fail(fmt.Sprintf("%s: %s", op, err.Error()))
+		}
 
-			for t := range in {
-				if err := ctx.Err(); err != nil {
-					break
-				}
-
-				if t.Finished {
-					out <- t
-					continue
-				}
-
-				err := saveDocument(t, dirPath)
-				if err != nil {
-					t = t.Failed(fmt.Sprintf("%s: %s", op, err.Error()))
-				}
-
-				out <- t
-			}
-		}()
-
-		return out
+		return t
 	}
 }
 

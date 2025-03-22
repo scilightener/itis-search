@@ -5,36 +5,14 @@ import (
 	"unicode"
 
 	"search/internal/domain"
-	"search/internal/pipe"
 )
 
-func NewFilterCyrillicPipe() pipe.Pipe[*Task] {
-	return func(ctx context.Context, in <-chan *Task) <-chan *Task {
-		out := make(chan *Task, cap(in))
-
-		go func() {
-			defer close(out)
-
-			for t := range in {
-				if err := ctx.Err(); err != nil {
-					break
-				}
-
-				if t.Finished {
-					out <- t
-					continue
-				}
-
-				if !isCyrillic(t.Document) {
-					t = t.Failed("document is not cyrillic")
-				}
-
-				out <- t
-			}
-		}()
-
-		return out
+func CyrillicFilter(_ context.Context, t *Task) bool {
+	if t.Finished {
+		return true
 	}
+
+	return isCyrillic(t.Document)
 }
 
 func isCyrillic(d domain.Document) bool {

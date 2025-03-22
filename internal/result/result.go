@@ -43,10 +43,3 @@ func (r Result) Message(delimiter string) string {
 func (r Result) String() string {
 	return fmt.Sprintf("Result: {successful: %t, message: %s}", r.successful, r.Message(", "))
 }
-
-func (r Result) Clone() Result {
-	clone := Result{successful: r.successful, messages: make([]string, len(r.messages))}
-
-	copy(clone.messages, r.messages)
-	return clone
-}

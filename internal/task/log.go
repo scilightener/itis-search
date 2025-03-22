@@ -8,23 +8,15 @@ import (
 	"search/internal/pipe"
 )
 
-func NewLogAsyncPipe() pipe.AsyncPipe[*Task] {
-	return func(ctx context.Context, in <-chan *Task) {
-		var n atomic.Int64
+func NewLogAsyncHandler() pipe.AsyncHandler[*Task] {
+	var n atomic.Int64
 
-		go func() {
-			for t := range in {
-				if err := ctx.Err(); err != nil {
-					break
-				}
+	return func(ctx context.Context, t *Task) {
+		if t.Finished {
+			return
+		}
 
-				if t.Finished {
-					continue
-				}
-
-				curIdx := n.Add(1)
-				fmt.Printf("%d %s\n", curIdx, t.String())
-			}
-		}()
+		curIdx := n.Add(1)
+		fmt.Printf("%d %s\n", curIdx, t.String())
 	}
 }

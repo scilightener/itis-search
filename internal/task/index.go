@@ -9,40 +9,26 @@ import (
 	"search/internal/pipe"
 )
 
-func NewIndexerPipe(indexFileName string) pipe.Pipe[*Task] {
-	const op = "task.index.NewIndexerPipe"
+func NewIndexerHandler(indexFileName string) pipe.Handler[*Task] {
+	const op = "task.index.NewIndexerHandler"
 
 	err := deleteIndexIfExists(indexFileName)
 	if err != nil {
 		panic(err)
 	}
 
-	return func(ctx context.Context, in <-chan *Task) <-chan *Task {
-		out := make(chan *Task, cap(in))
+	return func(ctx context.Context, t *Task) *Task {
 
-		go func() {
-			defer close(out)
+		if t.Finished {
+			return t
+		}
 
-			for t := range in {
-				if err := ctx.Err(); err != nil {
-					break
-				}
+		err := saveToIndex(t, indexFileName)
+		if err != nil {
+			t = t.Fail(fmt.Sprintf("%s: %s", op, err.Error()))
+		}
 
-				if t.Finished {
-					out <- t
-					continue
-				}
-
-				err := saveToIndex(t, indexFileName)
-				if err != nil {
-					t = t.Failed(fmt.Sprintf("%s: %s", op, err.Error()))
-				}
-
-				out <- t
-			}
-		}()
-
-		return out
+		return t
 	}
 }
 

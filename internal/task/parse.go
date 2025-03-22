@@ -9,40 +9,22 @@ import (
 
 	"golang.org/x/net/html"
 
-	"search/internal/pipe"
 	"search/internal/pkg"
 )
 
-func NewParsePipe() pipe.Pipe[*Task] {
-	const op = "task.parse.NewParseTaskPipe"
+func ParseHandler(_ context.Context, t *Task) *Task {
+	const op = "task.parse.ParseHandler"
 
-	return func(ctx context.Context, in <-chan *Task) <-chan *Task {
-		out := make(chan *Task, cap(in))
-
-		go func() {
-			defer close(out)
-
-			for t := range in {
-				if err := ctx.Err(); err != nil {
-					break
-				}
-
-				if t.Finished {
-					out <- t
-					continue
-				}
-
-				err := parseDocument(t)
-				if err != nil {
-					t = t.Failed(fmt.Sprintf("%s: %s", op, err.Error()))
-				}
-
-				out <- t
-			}
-		}()
-
-		return out
+	if t.Finished {
+		return t
 	}
+
+	err := parseDocument(t)
+	if err != nil {
+		t = t.Fail(fmt.Sprintf("%s: %s", op, err.Error()))
+	}
+
+	return t
 }
 
 func parseDocument(t *Task) error {

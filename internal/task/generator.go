@@ -21,6 +21,7 @@ func NewTaskGenerator(chanCapacity int, linksChan <-chan string, stopChan <-chan
 
 		go func() {
 			defer close(out)
+
 			for link := range linksChan {
 				select {
 				case <-ctx.Done():

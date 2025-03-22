@@ -41,20 +41,26 @@ func main() {
 
 	_ = pipe.StartPipeline(ctx,
 		task.NewTaskGenerator(pipelineChanCapacity, linksChan, stopChan),
-		pipe.NewParallelPipe(
-			task.NewFetchPipe(), numParallelFetchers,
+
+		pipe.Parallelize(
+			pipe.NewPipe(task.FetchHandler), numParallelFetchers,
 		),
-		task.NewParsePipe(),
-		task.NewFilterSmallDocumentsPipe(numDocumentWords),
-		task.NewFilterCyrillicPipe(),
-		pipe.NewPipeFromAsyncPipe(
-			task.NewFeedLinksAsyncPipe(linksChan),
+		pipe.NewPipe(task.ParseHandler),
+
+		pipe.Satisfies(task.NewBigDocumentFilter(numDocumentWords)),
+		pipe.Satisfies(task.CyrillicFilter),
+
+		pipe.Satisfies(task.NewDocumentCounterFilter(numDocuments, dataDirPath, stopChan)),
+
+		pipe.Synchronize(
+			pipe.NewAsyncPipe(task.NewFeedLinksAsyncHandler(linksChan)),
 		),
-		task.NewDocumentCounterPipe(numDocuments, dataDirPath, stopChan),
-		task.NewIndexerPipe(indexPath),
-		task.NewSavePipe(dataDirPath),
-		pipe.NewPipeFromAsyncPipe(
-			task.NewLogAsyncPipe(),
+
+		pipe.NewPipe(task.NewIndexerHandler(indexPath)),
+		pipe.NewPipe(task.NewSaveHandler(dataDirPath)),
+
+		pipe.Synchronize(
+			pipe.NewAsyncPipe(task.NewLogAsyncHandler()),
 		),
 		pipe.NewDiscardPipe[*task.Task](),
 	)

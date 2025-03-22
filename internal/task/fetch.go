@@ -5,41 +5,20 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-
-	"search/internal/pipe"
 )
 
-// NewFetchPipe returns a new pipe that fetches tasks.
-func NewFetchPipe() pipe.Pipe[*Task] {
-	const op = "task.fetch.NewFetchPipe"
-
-	return func(ctx context.Context, in <-chan *Task) <-chan *Task {
-		out := make(chan *Task, cap(in))
-
-		go func() {
-			defer close(out)
-
-			for t := range in {
-				if err := ctx.Err(); err != nil {
-					break
-				}
-
-				if t.Finished {
-					out <- t
-					continue
-				}
-
-				err := fetchTask(t)
-				if err != nil {
-					t = t.Failed(fmt.Sprintf("%s: %s", op, err.Error()))
-				}
-
-				out <- t
-			}
-		}()
-
-		return out
+func FetchHandler(_ context.Context, t *Task) *Task {
+	const op = "task.fetch.FetchHandler"
+	if t.Finished {
+		return t
 	}
+
+	err := fetchTask(t)
+	if err != nil {
+		t = t.Fail(fmt.Sprintf("%s: %s", op, err.Error()))
+	}
+
+	return t
 }
 
 // fetchTask fetches a task and extracts its content.

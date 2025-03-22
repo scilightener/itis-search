@@ -20,16 +20,3 @@ func (d Document) String() string {
 	return fmt.Sprintf("Document: {URI: %s, Links length: %d, Text length: %d}",
 		d.URI, len(d.Links), len(d.Text))
 }
-
-func (d Document) Clone() Document {
-	clone := Document{
-		Text:  make([]byte, len(d.Text)),
-		Links: make([]string, len(d.Links)),
-		URI:   d.URI,
-	}
-
-	copy(clone.Text, d.Text)
-	copy(clone.Links, d.Links)
-
-	return clone
-}

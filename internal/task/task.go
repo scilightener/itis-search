@@ -39,15 +39,15 @@ func (t *Task) Finish(result result.Result) *Task {
 	return t
 }
 
-// Failed fails the task with the provided messages
+// Fail fails the task with the provided messages
 // It returns old task, but finished.
-func (t *Task) Failed(messages ...string) *Task {
+func (t *Task) Fail(messages ...string) *Task {
 	if t.Finished {
 		return t
 	}
 
-	result := result.NewResult(false).WithMessages(messages...)
-	return t.Finish(result)
+	res := result.NewResult(false).WithMessages(messages...)
+	return t.Finish(res)
 }
 
 // String returns string representation of a Task.
