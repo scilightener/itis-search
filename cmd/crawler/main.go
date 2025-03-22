@@ -19,8 +19,8 @@ const (
 	numDocumentWords = 1000
 	numDocuments     = 200
 
-	dataDirPath = "./data/1"
-	indexPath   = "index.txt"
+	dataDirPath = "./data/2"
+	indexPath   = "index2.txt"
 )
 
 func main() {
@@ -49,8 +49,9 @@ func main() {
 
 		pipe.Satisfies(task.NewBigDocumentFilter(numDocumentWords)),
 		pipe.Satisfies(task.CyrillicFilter),
-
 		pipe.Satisfies(task.NewDocumentCounterFilter(numDocuments, dataDirPath, stopChan)),
+
+		pipe.NewPipe(task.ProcessDocumentHandler),
 
 		pipe.Synchronize(
 			pipe.NewAsyncPipe(task.NewFeedLinksAsyncHandler(linksChan)),
