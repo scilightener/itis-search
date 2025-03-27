@@ -7,6 +7,7 @@ import (
 	"os"
 	"slices"
 	"strconv"
+	"strings"
 
 	"github.com/olekukonko/tablewriter"
 )
@@ -69,7 +70,10 @@ func SaveTable(filename, header string, data map[string]map[int64]float64) error
 	writer := csv.NewWriter(file)
 	defer writer.Flush()
 
-	if err := writer.Write([]string{"word", "doc_id", "value"}); err != nil {
+	titles := strings.FieldsFunc(header, func(r rune) bool {
+		return r == ',' || r == '\t' || r == ' ' || r == '|'
+	})
+	if err := writer.Write(titles); err != nil {
 		return err
 	}
 

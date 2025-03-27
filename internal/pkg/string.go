@@ -12,6 +12,7 @@ func NormalizeString(s string) string {
 	words := tokenize(s)
 	words = removeStopWords(words)
 	words = lemmatize(words)
+	words = removeStopWords(words)
 
 	return strings.Join(words, " ")
 }

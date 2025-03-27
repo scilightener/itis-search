@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"search/internal/pkg"
 	"time"
 
 	"search/internal/index"
@@ -21,8 +22,8 @@ const (
 	numDocumentWords = 1000
 	numDocuments     = 100
 
-	dataDirPath = "./data/4"
-	indexPath   = "index4.json"
+	dataDirPath = "./data/5"
+	indexPath   = "index5.json"
 )
 
 func main() {
@@ -70,41 +71,18 @@ func main() {
 	)
 
 	time.Sleep(2 * time.Second)
-	idx := index.NewInverseIndex()
+	idx := index.NewIndex()
 	err := idx.Load(indexPath)
 	if err != nil {
 		panic(err)
 	}
 
-	if err := idx.SaveTF("tf.csv"); err != nil {
-		panic(err)
+	engine := index.NewSearchEngine(&idx.Data)
+	query := "французский багет"
+	query = pkg.NormalizeString(query)
+	top := 5
+	results := engine.Search(query, top)
+	for _, result := range results {
+		fmt.Printf("Документ %d: вес = %.4f\n", result.DocID, result.Score)
 	}
-	if err := idx.SaveIDF("idf.csv"); err != nil {
-		panic(err)
-	}
-	if err := idx.SaveTFIDF("tfidf.csv"); err != nil {
-		panic(err)
-	}
-
-	fmt.Println("Saved tables: tf.csv, idf.csv, tfidf.csv")
-
-	tf := idx.CalculateTF()
-	idf := idx.CalculateIDF()
-	tfidf := idx.CalculateTFIDF()
-
-	idfData := make(map[string]map[int64]float64)
-	for word, values := range tf {
-		idfData[word] = make(map[int64]float64)
-		for docID := range values {
-			idfData[word][docID] = idf[word]
-		}
-	}
-
-	maxRows := 10
-	index.PrintTable("TF (Term Frequency)", tf, maxRows)
-	fmt.Println()
-	index.PrintTable("IDF (Inverse Document Frequency)", idfData, maxRows)
-	fmt.Println()
-	index.PrintTable("TF-IDF", tfidf, maxRows)
-	fmt.Println()
 }

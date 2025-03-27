@@ -1,18 +1,11 @@
 package index
 
-const (
-	and = "&"
-	or  = "|"
-	not = "!"
-)
-
-type InverseIndex struct {
-	indexData
-	searchEngine
+type Index struct {
+	Data indexData
 	tfidfCalculator
 }
 
-func NewInverseIndex() *InverseIndex {
+func NewIndex() *Index {
 	data := &indexData{
 		word2docIDs:    make(map[string]map[int64]struct{}),
 		word2docCounts: make(map[string]map[int64]int),
@@ -20,25 +13,21 @@ func NewInverseIndex() *InverseIndex {
 		docIDs:         make(map[int64]struct{}),
 		totalDocs:      0,
 	}
-	return &InverseIndex{
-		indexData: *data,
-		searchEngine: searchEngine{
-			data,
-		},
+	return &Index{
+		Data: *data,
 		tfidfCalculator: tfidfCalculator{
 			data,
 		},
 	}
 }
 
-func (i *InverseIndex) Load(indexPath string) error {
-	err := i.indexData.Load(indexPath)
+func (i *Index) Load(indexPath string) error {
+	err := i.Data.Load(indexPath)
 	if err != nil {
 		return err
 	}
 
-	i.searchEngine.index = &i.indexData
-	i.tfidfCalculator.index = &i.indexData
+	i.tfidfCalculator.index = &i.Data
 	return nil
 }
 

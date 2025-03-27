@@ -14,12 +14,12 @@ func NewIndexerPipe(indexFileName string) pipe.AsyncPipe[*Task] {
 		panic(err)
 	}
 
-	idx := index.NewInverseIndex()
+	idx := index.NewIndex()
 
 	return func(ctx context.Context, in <-chan *Task) {
 		go func() {
-			defer func(index *index.InverseIndex, fileName string) {
-				err := index.Save(fileName)
+			defer func(idx *index.Index, fileName string) {
+				err := idx.Data.Save(fileName)
 				if err != nil {
 					panic(err)
 				}
@@ -34,7 +34,7 @@ func NewIndexerPipe(indexFileName string) pipe.AsyncPipe[*Task] {
 					continue
 				}
 
-				idx.Add(t.Document)
+				idx.Data.Add(t.Document)
 			}
 		}()
 	}
