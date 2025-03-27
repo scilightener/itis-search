@@ -127,3 +127,32 @@ func removeEmptyTokens(q Query) Query {
 
 	return newQuery
 }
+
+func splitQuery(query Query, op TokenType) []Query {
+	var subqueries []Query
+	start := 0
+
+	for i, token := range query.Tokens {
+		if token.Type == op {
+			if i > start {
+				subqueries = append(subqueries, Query{Tokens: query.Tokens[start:i]})
+			}
+			start = i + 1
+		}
+	}
+
+	if start < len(query.Tokens) {
+		subqueries = append(subqueries, Query{Tokens: query.Tokens[start:]})
+	}
+
+	return subqueries
+}
+
+func containsOperator(query Query, op TokenType) bool {
+	for _, token := range query.Tokens {
+		if token.Type == op {
+			return true
+		}
+	}
+	return false
+}

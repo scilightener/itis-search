@@ -21,8 +21,8 @@ const (
 	numDocumentWords = 1000
 	numDocuments     = 100
 
-	dataDirPath = "./data/3"
-	indexPath   = "index3.txt"
+	dataDirPath = "./data/4"
+	indexPath   = "index4.json"
 )
 
 func main() {
@@ -50,7 +50,7 @@ func main() {
 		pipe.Satisfies(task.NewDocumentSizeFilter(numDocumentWords)),
 		pipe.Satisfies(task.CyrillicFilter),
 		pipe.Satisfies(task.NewDocumentCounterFilter(numDocuments, cancel)),
-		pipe.Satisfies(task.FinishedFilter),
+		pipe.Satisfies(task.NotFinishedFilter),
 
 		pipe.NewPipe(task.ProcessDocumentHandler),
 
@@ -69,14 +69,6 @@ func main() {
 		pipe.NewWaitPipe[*task.Task](),
 	)
 
-	queries := []string{
-		"авито & википедия | французский",
-		"авито | википедия | французский",
-		"авито & википедия & французский",
-		"авито & !википедия | !французский",
-		"авито | !википедия | !французский",
-	}
-
 	time.Sleep(2 * time.Second)
 	idx := index.NewInverseIndex()
 	err := idx.Load(indexPath)
@@ -84,11 +76,35 @@ func main() {
 		panic(err)
 	}
 
-	search := index.NewSearch(idx)
-
-	for _, query := range queries {
-		fmt.Printf("Search query: %s\n", query)
-		fmt.Printf("Search results: %v\n", search.Search(query))
-		fmt.Println()
+	if err := idx.SaveTF("tf.csv"); err != nil {
+		panic(err)
 	}
+	if err := idx.SaveIDF("idf.csv"); err != nil {
+		panic(err)
+	}
+	if err := idx.SaveTFIDF("tfidf.csv"); err != nil {
+		panic(err)
+	}
+
+	fmt.Println("Saved tables: tf.csv, idf.csv, tfidf.csv")
+
+	tf := idx.CalculateTF()
+	idf := idx.CalculateIDF()
+	tfidf := idx.CalculateTFIDF()
+
+	idfData := make(map[string]map[int64]float64)
+	for word, values := range tf {
+		idfData[word] = make(map[int64]float64)
+		for docID := range values {
+			idfData[word][docID] = idf[word]
+		}
+	}
+
+	maxRows := 10
+	index.PrintTable("TF (Term Frequency)", tf, maxRows)
+	fmt.Println()
+	index.PrintTable("IDF (Inverse Document Frequency)", idfData, maxRows)
+	fmt.Println()
+	index.PrintTable("TF-IDF", tfidf, maxRows)
+	fmt.Println()
 }
