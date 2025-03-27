@@ -8,7 +8,7 @@ import (
 	"search/internal/pipe"
 )
 
-func NewBigDocumentFilter(threshold int) pipe.Filter[*Task] {
+func NewDocumentSizeFilter(threshold int) pipe.Filter[*Task] {
 	return func(_ context.Context, t *Task) bool {
 		if t.Finished {
 			return true

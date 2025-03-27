@@ -26,7 +26,7 @@ func NewTask(id int64, link string) *Task {
 		Finished:     false,
 		FinishTime:   time.Time{},
 		Result:       result.NewResult(true).WithMessages("just created"),
-		Document:     domain.NewDocument(link),
+		Document:     domain.NewDocument(id, link),
 	}
 }
 

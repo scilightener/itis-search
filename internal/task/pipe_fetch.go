@@ -7,13 +7,13 @@ import (
 	"net/http"
 )
 
-func FetchHandler(_ context.Context, t *Task) *Task {
+func FetchHandler(ctx context.Context, t *Task) *Task {
 	const op = "task.fetch.FetchHandler"
 	if t.Finished {
 		return t
 	}
 
-	err := fetchTask(t)
+	err := fetchTask(ctx, t)
 	if err != nil {
 		t = t.Fail(fmt.Sprintf("%s: %s", op, err.Error()))
 	}
@@ -22,8 +22,12 @@ func FetchHandler(_ context.Context, t *Task) *Task {
 }
 
 // fetchTask fetches a task and extracts its content.
-func fetchTask(t *Task) error {
-	resp, err := http.Get(t.Link)
+func fetchTask(ctx context.Context, t *Task) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, t.Link, nil)
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("failed to fetch URL: %w", err)
 	}

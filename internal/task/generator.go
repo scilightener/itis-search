@@ -13,7 +13,7 @@ import (
 var nextID atomic.Int64
 
 // NewTaskGenerator returns a new Source that generates Task's.
-func NewTaskGenerator(chanCapacity int, linksChan <-chan string, stopChan <-chan struct{}) pipe.Source[*Task] {
+func NewTaskGenerator(chanCapacity int, linksChan <-chan string) pipe.Source[*Task] {
 	return func(ctx context.Context) <-chan *Task {
 		out := make(chan *Task, chanCapacity)
 
@@ -25,8 +25,6 @@ func NewTaskGenerator(chanCapacity int, linksChan <-chan string, stopChan <-chan
 			for link := range linksChan {
 				select {
 				case <-ctx.Done():
-					return
-				case <-stopChan:
 					return
 				default:
 					if !isValidLink(link) {
