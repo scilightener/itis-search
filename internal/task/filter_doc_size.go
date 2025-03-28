@@ -19,6 +19,6 @@ func NewDocumentSizeFilter(threshold int) pipe.Filter[*Task] {
 }
 
 func isSmallDocument(d domain.Document, threshold int) bool {
-	text := string(d.Text)
+	text := string(d.ProcessedText)
 	return len(strings.Fields(text)) < threshold
 }

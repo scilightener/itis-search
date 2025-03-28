@@ -16,7 +16,7 @@ func CyrillicFilter(_ context.Context, t *Task) bool {
 }
 
 func isCyrillic(d domain.Document) bool {
-	text := []rune(string(d.Text))
+	text := []rune(string(d.ProcessedText))
 	cyrillicCount := 0
 	for _, r := range text {
 		if unicode.Is(unicode.Cyrillic, r) {

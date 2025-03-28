@@ -18,7 +18,7 @@ type indexData struct {
 }
 
 func (d *indexData) Add(doc domain.Document) {
-	words := strings.Fields(string(doc.Text))
+	words := strings.Fields(string(doc.ProcessedText))
 	if _, exists := d.docIDs[doc.ID]; !exists {
 		d.totalDocs++
 	}

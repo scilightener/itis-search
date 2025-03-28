@@ -33,7 +33,7 @@ func parseDocument(t *Task) error {
 		return fmt.Errorf("failed to parse URL: %w", err)
 	}
 
-	reader := bytes.NewReader(t.Document.Text)
+	reader := bytes.NewReader(t.Document.ProcessedText)
 	doc, err := html.Parse(reader)
 	if err != nil {
 		return fmt.Errorf("failed to parse HTML: %w", err)
@@ -44,7 +44,8 @@ func parseDocument(t *Task) error {
 		return fmt.Errorf("failed to extract content: %w", err)
 	}
 
-	t.Document.Text = []byte(textContent)
+	t.Document.ProcessedText = []byte(textContent)
+	t.Document.RawText = []byte(textContent)
 	t.Document.Links = links
 
 	return nil

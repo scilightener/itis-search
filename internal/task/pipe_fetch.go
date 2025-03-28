@@ -44,7 +44,7 @@ func fetchTask(ctx context.Context, t *Task) error {
 		return fmt.Errorf("failed to read response body: %w", err)
 	}
 
-	t.Document.Text = respBytes
+	t.Document.ProcessedText = respBytes
 
 	return nil
 }
