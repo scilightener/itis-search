@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -29,133 +30,207 @@ const (
 	processedDocumentsDirPath = "./data/5/processed"
 	rawDocumentsDirPath       = "./data/5/raw"
 	indexPath                 = "index5.json"
+
+	historyFile  = "/tmp/search_history.txt"
+	historyLimit = 100
 )
 
-func main() {
-	//fetch()
-	//time.Sleep(2 * time.Second)
+type SearchApp struct {
+	engine     *index.SearchEngine
+	top        int
+	windowSize int
+}
 
+func main() {
+	app := initializeApp()
+	app.runSearchLoop()
+}
+
+func initializeApp() *SearchApp {
 	idx := index.NewIndex()
-	err := idx.Load(indexPath)
-	if err != nil {
+	if err := idx.Load(indexPath); err != nil {
 		color.Red("Ошибка загрузки индекса: %v\n", err)
-		return
+		os.Exit(1)
 	}
 
-	engine := index.NewSearchEngine(&idx.Data)
-	top := 5
+	return &SearchApp{
+		engine:     index.NewSearchEngine(&idx.Data),
+		top:        5,
+		windowSize: 20,
+	}
+}
 
+func (app *SearchApp) runSearchLoop() {
 	color.Cyan("Поисковая система запущена. Введите запрос (или 'exit' для выхода):")
-	color.Yellow("Доступные команды: :top N, :clear")
+	color.Yellow("Доступные команды: :top N, :window N, :clear")
 
+	rl := app.setupReadline()
+	defer func(rl *readline.Instance) {
+		err := rl.Close()
+		if err != nil {
+			color.Red("Ошибка сохранения истории: %v", err)
+		}
+	}(rl)
+
+	for {
+		query, shouldExit := app.readInput(rl)
+		if shouldExit {
+			color.Green("Завершение работы.")
+			return
+		}
+
+		shouldExit = app.processQuery(query, rl)
+		if shouldExit {
+			color.Green("Завершение работы.")
+			return
+		}
+	}
+}
+
+func (app *SearchApp) setupReadline() *readline.Instance {
 	rl, err := readline.NewEx(&readline.Config{
 		Prompt:       "\033[32mПоиск>\033[0m ",
-		HistoryFile:  "/tmp/search_history.txt",
-		HistoryLimit: 100,
+		HistoryFile:  historyFile,
+		HistoryLimit: historyLimit,
 	})
 	if err != nil {
 		panic(err)
 	}
-	defer func(rl *readline.Instance) {
-		err := rl.Close()
-		if err != nil {
-			color.Red("Ошибка закрытия readline: %v", err)
-		}
-	}(rl)
 
-	completer := readline.NewPrefixCompleter(
+	rl.Config.AutoComplete = readline.NewPrefixCompleter(
 		readline.PcItem(":clear"),
 		readline.PcItem(":top"),
+		readline.PcItem(":window"),
 		readline.PcItem("exit"),
 	)
-	rl.Config.AutoComplete = completer
 
-	for {
-		line, err := rl.Readline()
-		if err != nil {
-			break
-		}
-		query := strings.TrimSpace(line)
+	return rl
+}
 
-		switch {
-		case strings.ToLower(query) == "exit":
-			color.Green("Завершение работы.")
-			return
-
-		case strings.ToLower(query) == ":clear":
-			rl.ResetHistory()
-			if err := rl.SaveHistory(query); err != nil {
-				color.Red("Ошибка сохранения истории: %v", err)
-			}
-			color.Green("История очищена")
-			continue
-
-		case strings.HasPrefix(query, ":top "):
-			_, err := fmt.Sscanf(query, ":top %d", &top)
-			if err != nil {
-				color.Red("Неверный формат. Используйте: :top N")
-			} else {
-				color.Green("Установлено количество результатов: %d", top)
-			}
-			continue
-		}
-
-		if query == "" {
-			continue
-		}
-
-		if err := rl.SaveHistory(query); err != nil {
-			color.Red("Ошибка сохранения истории: %v", err)
-		}
-
-		results := engine.Search(query, top)
-		printResults(query, results)
+func (app *SearchApp) readInput(rl *readline.Instance) (string, bool) {
+	line, err := rl.Readline()
+	if err != nil {
+		return "", true
 	}
+	return strings.TrimSpace(line), false
+}
+
+func (app *SearchApp) processQuery(query string, rl *readline.Instance) (shouldReturn bool) {
+	switch {
+	case strings.ToLower(query) == "exit":
+		return true
+
+	case strings.ToLower(query) == ":clear":
+		app.clearHistory(rl)
+		return false
+
+	case strings.HasPrefix(query, ":top "):
+		app.setTopResults(query)
+		return false
+
+	case strings.HasPrefix(query, ":window "):
+		app.setContextSize(query)
+		return false
+
+	case query == "":
+		return false
+	}
+
+	if err := rl.SaveHistory(query); err != nil {
+		color.Red("Ошибка сохранения истории: %v", err)
+	}
+
+	app.showSearchResults(query)
+	return false
+}
+
+func (app *SearchApp) clearHistory(rl *readline.Instance) {
+	rl.ResetHistory()
+	if err := rl.SaveHistory(""); err != nil {
+		color.Red("Ошибка сохранения истории: %v", err)
+	}
+	color.Green("История очищена")
+}
+
+func (app *SearchApp) setTopResults(query string) {
+	_, err := fmt.Sscanf(query, ":top %d", &app.top)
+	if err != nil {
+		color.Red("Неверный формат. Используйте: :top N")
+	} else {
+		color.Green("Установлено количество результатов: %d", app.top)
+	}
+}
+
+func (app *SearchApp) setContextSize(query string) {
+	_, err := fmt.Sscanf(query, ":window %d", &app.windowSize)
+	if err != nil {
+		color.Red("Неверный формат. Используйте: :window N")
+	} else {
+		color.Green("Установлено количество результатов: %d", app.windowSize)
+	}
+}
+
+func (app *SearchApp) showSearchResults(query string) {
+	results := app.engine.Search(query, app.top, app.windowSize)
+	printResults(query, results)
 }
 
 func printResults(query string, results []index.SearchResult) {
 	normalizedQuery := pkg.NormalizeString(query)
 	queryWords := strings.Fields(normalizedQuery)
-
 	yellow := color.New(color.FgYellow).SprintFunc()
+
 	fmt.Printf("\nРезультатов по запросу '%s': %d\n", query, len(results))
 
 	for i, result := range results {
-		snippet := result.Snippet
-		originalWords := strings.Fields(snippet)
-
-		highlightPositions := make(map[int]bool, len(originalWords))
-
-		for wordPos, originalWord := range originalWords {
-			normalizedWord := pkg.NormalizeString(originalWord)
-
-			for _, qWord := range queryWords {
-				if normalizedWord == qWord ||
-					(len(qWord) > 3 && strings.Contains(normalizedWord, qWord)) ||
-					(len(normalizedWord) > 3 && strings.Contains(qWord, normalizedWord)) {
-					highlightPositions[wordPos] = true
-					break
-				}
-			}
-		}
-
-		var builder strings.Builder
-		for wordPos, word := range originalWords {
-			if highlightPositions[wordPos] {
-				builder.WriteString(yellow(word))
-			} else {
-				builder.WriteString(word)
-			}
-
-			if wordPos < len(originalWords)-1 {
-				builder.WriteString(" ")
-			}
-		}
-
-		color.Blue("%d. Документ %d (релевантность: %.2f)", i+1, result.DocID, result.Score)
-		fmt.Printf("   Сниппет: %s\n", builder.String())
-		color.White("   " + strings.Repeat("─", 60))
+		printSingleResult(i+1, result, queryWords, yellow)
 	}
+}
+
+func printSingleResult(position int, result index.SearchResult, queryWords []string, highlightFunc func(a ...interface{}) string) {
+	snippet := result.Snippet
+	originalWords := strings.Fields(snippet)
+	highlightPositions := findHighlightPositions(originalWords, queryWords)
+
+	var builder strings.Builder
+	for wordPos, word := range originalWords {
+		if highlightPositions[wordPos] {
+			builder.WriteString(highlightFunc(word))
+		} else {
+			builder.WriteString(word)
+		}
+
+		if wordPos < len(originalWords)-1 {
+			builder.WriteString(" ")
+		}
+	}
+
+	color.Blue("%d. Документ %d (релевантность: %.2f)", position, result.DocID, result.Score)
+	fmt.Printf("   Сниппет: %s\n", builder.String())
+	color.White("   " + strings.Repeat("─", 60))
+}
+
+func findHighlightPositions(words []string, queryWords []string) map[int]bool {
+	positions := make(map[int]bool, len(words))
+
+	for wordPos, word := range words {
+		normalizedWord := pkg.NormalizeString(word)
+
+		for _, qWord := range queryWords {
+			if shouldHighlight(normalizedWord, qWord) {
+				positions[wordPos] = true
+				break
+			}
+		}
+	}
+
+	return positions
+}
+
+func shouldHighlight(word, queryWord string) bool {
+	return word == queryWord ||
+		(len(queryWord) > 3 && strings.Contains(word, queryWord)) ||
+		(len(word) > 3 && strings.Contains(queryWord, word))
 }
 
 func fetch() {

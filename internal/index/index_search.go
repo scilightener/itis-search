@@ -102,7 +102,7 @@ func (s *SearchEngine) cosineSimilarity(queryVector map[string]float64, docID in
 	return dotProduct / (queryNorm * docNorm)
 }
 
-func (s *SearchEngine) Search(query string, numResults int) []SearchResult {
+func (s *SearchEngine) Search(query string, numResults, windowSize int) []SearchResult {
 	query = pkg.NormalizeString(query)
 	queryWords := strings.Fields(query)
 	queryVector := s.vectorizeQuery(queryWords)
@@ -144,7 +144,7 @@ func (s *SearchEngine) Search(query string, numResults int) []SearchResult {
 
 	results := make([]SearchResult, len(topDocs))
 	for i, ds := range topDocs {
-		snippet := s.findBestSnippet(ds.docID, queryWords, 10)
+		snippet := s.findBestSnippet(ds.docID, queryWords, windowSize)
 		results[i] = SearchResult{
 			DocID:   ds.docID,
 			Score:   ds.score,
@@ -201,9 +201,9 @@ func (s *SearchEngine) findBestSnippet(docID int64, queryWords []string, windowS
 			localBestScore := -1
 			localBestStart := 0
 
-			for i := start; i <= end-windowSize; i++ {
+			for i := start; i <= end-windowSize/2; i++ {
 				score := 0
-				for j := i; j < i+windowSize && j < totalWords; j++ {
+				for j := i; j < i+windowSize/2 && j < totalWords; j++ {
 					word := pkg.NormalizeString(words[j])
 					for _, qWord := range queryWords {
 						if word == qWord {
@@ -231,12 +231,17 @@ func (s *SearchEngine) findBestSnippet(docID int64, queryWords []string, windowS
 
 	wg.Wait()
 
-	snippetEnd := bestStart + windowSize
+	snippetEnd := bestStart + windowSize/2
 	if snippetEnd > totalWords {
 		snippetEnd = totalWords
 	}
 
-	return strings.Join(words[bestStart:snippetEnd], " ")
+	snippetStart := bestStart - windowSize/2
+	if snippetStart < 0 {
+		snippetStart = 0
+	}
+
+	return strings.Join(words[snippetStart:snippetEnd], " ")
 }
 
 const docDirPath = "data/5/raw"
