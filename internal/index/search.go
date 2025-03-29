@@ -1,5 +1,7 @@
 package index
 
+import "slices"
+
 type Search struct {
 	index *InverseIndex
 }
@@ -12,5 +14,7 @@ func NewSearch(index *InverseIndex) *Search {
 
 func (s *Search) Search(query string) []int64 {
 	q := NewQuery(query)
-	return s.index.Search(q)
+	res := s.index.Search(q)
+	slices.Sort(res)
+	return res
 }
