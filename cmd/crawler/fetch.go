@@ -14,7 +14,7 @@ const (
 	linksChanCapacity    = 100
 	pipelineChanCapacity = 100
 
-	numParallelFetchers = 20
+	numParallelFetchers = 50
 
 	numDocumentWords = 1000
 	numDocuments     = 200

@@ -2,19 +2,18 @@ package main
 
 import (
 	"fmt"
-	"os"
-	"strings"
-
 	"github.com/chzyer/readline"
 	"github.com/fatih/color"
+	"os"
+	"strings"
 
 	"search/internal/index"
 	"search/internal/pkg"
 )
 
 const (
-	processedDocumentsDirPath = "./data/5/processed"
-	rawDocumentsDirPath       = "./data/5/raw"
+	processedDocumentsDirPath = "./data/processed"
+	rawDocumentsDirPath       = "./data/raw"
 	indexPath                 = "index5.json"
 
 	historyFile  = "/tmp/search_history.txt"
