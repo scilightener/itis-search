@@ -16,11 +16,6 @@ const (
 	linksChanCapacity    = 100
 	pipelineChanCapacity = 100
 
-	numParallelFetchers = 20
-
-	numDocumentWords = 1000
-	numDocuments     = 100
-
 	dataDirPath = "./data/4"
 	indexPath   = "index4.json"
 )
@@ -40,23 +35,9 @@ func main() {
 	}
 
 	<-pipe.StartPipeline(ctx,
-		task.NewTaskGenerator(pipelineChanCapacity, linksChan),
-
-		pipe.Parallelize(
-			pipe.NewPipe(task.FetchHandler), numParallelFetchers,
-		),
-		pipe.NewPipe(task.ParseHandler),
-
-		pipe.Satisfies(task.NewDocumentSizeFilter(numDocumentWords)),
-		pipe.Satisfies(task.CyrillicFilter),
-		pipe.Satisfies(task.NewDocumentCounterFilter(numDocuments, cancel)),
-		pipe.Satisfies(task.NotFinishedFilter),
+		task.NewTaskGeneratorFromStorage(pipelineChanCapacity, "./data/raw/", "./index.txt"),
 
 		pipe.NewPipe(task.ProcessDocumentHandler),
-
-		pipe.Synchronize(
-			pipe.NewAsyncPipe(task.NewFeedLinksAsyncHandler(linksChan)),
-		),
 
 		pipe.Synchronize(
 			task.NewIndexerPipe(indexPath),
