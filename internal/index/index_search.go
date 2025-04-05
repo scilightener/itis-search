@@ -118,7 +118,7 @@ func (s *SearchEngine) Search(query string, numResults, windowSize int) []Search
 		docScores = make([]docScore, 0)
 	)
 
-	for docID := range s.index.docIDs {
+	for docID := range s.index.docID2link {
 		wg.Add(1)
 		go func(docID int64) {
 			defer wg.Done()
@@ -244,7 +244,7 @@ func (s *SearchEngine) findBestSnippet(docID int64, queryWords []string, windowS
 	return strings.Join(words[snippetStart:snippetEnd], " ")
 }
 
-const docDirPath = "data/5/raw"
+const docDirPath = "data/raw"
 
 func (s *SearchEngine) getDocumentContent(docID int64) (string, error) {
 	s.cacheMutex.RLock()

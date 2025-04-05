@@ -13,16 +13,16 @@ type indexData struct {
 	word2docIDs    map[string]map[int64]struct{}
 	word2docCounts map[string]map[int64]int
 	docLengths     map[int64]int
-	docIDs         map[int64]struct{}
+	docID2link     map[int64]string
 	totalDocs      int
 }
 
 func (d *indexData) Add(doc domain.Document) {
 	words := strings.Fields(string(doc.ProcessedText))
-	if _, exists := d.docIDs[doc.ID]; !exists {
+	if _, exists := d.docID2link[doc.ID]; !exists {
 		d.totalDocs++
 	}
-	d.docIDs[doc.ID] = struct{}{}
+	d.docID2link[doc.ID] = doc.URI
 	d.docLengths[doc.ID] = len(words)
 
 	wordCounts := make(map[string]int)
@@ -51,11 +51,13 @@ func (d *indexData) Save(filename string) error {
 		Word2DocIDs    map[string][]int64       `json:"word2doc_ids"`
 		Word2DocCounts map[string]map[int64]int `json:"word2doc_counts"`
 		DocLengths     map[int64]int            `json:"doc_lengths"`
+		DocID2Link     map[int64]string         `json:"doc_id2links"`
 		TotalDocs      int                      `json:"total_docs"`
 	}{
 		Word2DocIDs:    word2DocIDs,
 		Word2DocCounts: d.word2docCounts,
 		DocLengths:     d.docLengths,
+		DocID2Link:     d.docID2link,
 		TotalDocs:      d.totalDocs,
 	}
 
@@ -91,6 +93,7 @@ func (d *indexData) Load(filename string) error {
 		Word2DocIDs    map[string][]int64       `json:"word2doc_ids"`
 		Word2DocCounts map[string]map[int64]int `json:"word2doc_counts"`
 		DocLengths     map[int64]int            `json:"doc_lengths"`
+		DocID2Link     map[int64]string         `json:"doc_id2links"`
 		TotalDocs      int                      `json:"total_docs"`
 	}
 
@@ -109,11 +112,7 @@ func (d *indexData) Load(filename string) error {
 	d.word2docCounts = data.Word2DocCounts
 	d.docLengths = data.DocLengths
 	d.totalDocs = data.TotalDocs
-
-	d.docIDs = make(map[int64]struct{})
-	for id := range d.docLengths {
-		d.docIDs[id] = struct{}{}
-	}
+	d.docID2link = data.DocID2Link
 
 	return nil
 }

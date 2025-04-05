@@ -6,15 +6,14 @@ import (
 	"github.com/fatih/color"
 	"os"
 	"strings"
+	"time"
 
 	"search/internal/index"
 	"search/internal/pkg"
 )
 
 const (
-	processedDocumentsDirPath = "./data/processed"
-	rawDocumentsDirPath       = "./data/raw"
-	indexPath                 = "index5.json"
+	indexPath = "index5.json"
 
 	historyFile  = "/tmp/search_history.txt"
 	historyLimit = 100
@@ -27,6 +26,8 @@ type SearchApp struct {
 }
 
 func main() {
+	fetch()
+	time.Sleep(time.Second)
 	app := initializeApp()
 	app.runSearchLoop()
 }

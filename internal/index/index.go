@@ -10,7 +10,7 @@ func NewIndex() *Index {
 		word2docIDs:    make(map[string]map[int64]struct{}),
 		word2docCounts: make(map[string]map[int64]int),
 		docLengths:     make(map[int64]int),
-		docIDs:         make(map[int64]struct{}),
+		docID2link:     make(map[int64]string),
 		totalDocs:      0,
 	}
 	return &Index{
