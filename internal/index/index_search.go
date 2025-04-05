@@ -107,8 +107,9 @@ func (s *SearchEngine) Search(query string, numResults, windowSize int) []Search
 	queryVector := s.vectorizeQuery(queryWords)
 
 	type docScore struct {
-		docID int64
-		score float64
+		docID         int64
+		cosineScore   float64
+		coverageScore float64
 	}
 
 	var (
@@ -117,23 +118,47 @@ func (s *SearchEngine) Search(query string, numResults, windowSize int) []Search
 		docScores = make([]docScore, 0)
 	)
 
+	queryWordsSet := make(map[string]struct{})
+	for _, word := range queryWords {
+		queryWordsSet[word] = struct{}{}
+	}
+
 	for docID := range s.index.docID2link {
 		wg.Add(1)
 		go func(docID int64) {
 			defer wg.Done()
-			score := s.cosineSimilarity(queryVector, docID)
-			if score > 0 {
-				mu.Lock()
-				docScores = append(docScores, docScore{docID, score})
-				mu.Unlock()
+
+			cosineScore := s.cosineSimilarity(queryVector, docID)
+			if cosineScore == 0 {
+				return
 			}
+
+			docWords := s.docVectors[docID]
+			matchedWords := 0
+			for word := range queryWordsSet {
+				if _, exists := docWords[word]; exists {
+					matchedWords++
+				}
+			}
+			coverageScore := float64(matchedWords) / float64(len(queryWords))
+
+			mu.Lock()
+			docScores = append(docScores, docScore{
+				docID:         docID,
+				cosineScore:   cosineScore,
+				coverageScore: coverageScore,
+			})
+			mu.Unlock()
 		}(docID)
 	}
 
 	wg.Wait()
 
 	sort.Slice(docScores, func(i, j int) bool {
-		return docScores[i].score > docScores[j].score
+		if docScores[i].coverageScore != docScores[j].coverageScore {
+			return docScores[i].coverageScore > docScores[j].coverageScore
+		}
+		return docScores[i].cosineScore > docScores[j].cosineScore
 	})
 
 	topDocs := docScores
@@ -143,11 +168,11 @@ func (s *SearchEngine) Search(query string, numResults, windowSize int) []Search
 
 	results := make([]SearchResult, len(topDocs))
 	for i, ds := range topDocs {
-		snippet := strings.Join(s.findBestSnippet(ds.docID, queryWords, windowSize), " ... ")
+		snippets := s.findBestSnippet(ds.docID, queryWords, windowSize)
 		results[i] = SearchResult{
 			DocID:   ds.docID,
-			Score:   ds.score,
-			Snippet: snippet,
+			Score:   ds.cosineScore * (1 + ds.coverageScore),
+			Snippet: strings.Join(snippets, " ... "),
 		}
 	}
 
