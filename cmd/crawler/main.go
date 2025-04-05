@@ -11,13 +11,8 @@ import (
 const (
 	crawlerTimeout = time.Minute
 
-	linksChanCapacity    = 1000
-	pipelineChanCapacity = 1000
-
-	numParallelFetchers = 20
-
-	numDocumentWords = 1000
-	numDocuments     = 200
+	linksChanCapacity    = 100
+	pipelineChanCapacity = 100
 
 	dataDirPath = "./data/2"
 	indexPath   = "index2.txt"
@@ -37,25 +32,10 @@ func main() {
 		linksChan <- link
 	}
 
-	stopChan := make(chan struct{})
-
 	_ = pipe.StartPipeline(ctx,
-		task.NewTaskGenerator(pipelineChanCapacity, linksChan, stopChan),
-
-		pipe.Parallelize(
-			pipe.NewPipe(task.FetchHandler), numParallelFetchers,
-		),
-		pipe.NewPipe(task.ParseHandler),
-
-		pipe.Satisfies(task.NewBigDocumentFilter(numDocumentWords)),
-		pipe.Satisfies(task.CyrillicFilter),
-		pipe.Satisfies(task.NewDocumentCounterFilter(numDocuments, dataDirPath, stopChan)),
+		task.NewTaskGeneratorFromStorage(pipelineChanCapacity, "./data/raw/", "./index.txt"),
 
 		pipe.NewPipe(task.ProcessDocumentHandler),
-
-		pipe.Synchronize(
-			pipe.NewAsyncPipe(task.NewFeedLinksAsyncHandler(linksChan)),
-		),
 
 		pipe.NewPipe(task.NewIndexerHandler(indexPath)),
 		pipe.NewPipe(task.NewSaveHandler(dataDirPath)),
