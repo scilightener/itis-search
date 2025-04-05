@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"math"
 	"os"
-	"runtime"
 	"sort"
 	"strings"
 	"sync"
@@ -144,7 +143,7 @@ func (s *SearchEngine) Search(query string, numResults, windowSize int) []Search
 
 	results := make([]SearchResult, len(topDocs))
 	for i, ds := range topDocs {
-		snippet := s.findBestSnippet(ds.docID, queryWords, windowSize)
+		snippet := strings.Join(s.findBestSnippet(ds.docID, queryWords, windowSize), " ... ")
 		results[i] = SearchResult{
 			DocID:   ds.docID,
 			Score:   ds.score,
@@ -155,93 +154,93 @@ func (s *SearchEngine) Search(query string, numResults, windowSize int) []Search
 	return results
 }
 
-func (s *SearchEngine) findBestSnippet(docID int64, queryWords []string, windowSize int) string {
+func (s *SearchEngine) findBestSnippet(docID int64, queryWords []string, windowSize int) []string {
 	content, err := s.getDocumentContent(docID)
 	if err != nil || content == "" {
-		return ""
+		return nil
 	}
 
 	words := strings.Fields(content)
+	if len(words) == 0 {
+		return nil
+	}
+
+	uniqueQueryWords := make(map[string]bool)
+	for _, word := range queryWords {
+		uniqueQueryWords[pkg.NormalizeString(word)] = true
+	}
+
+	wordPositions := make(map[string][]int)
+	for pos, word := range words {
+		normalized := pkg.NormalizeString(word)
+		if uniqueQueryWords[normalized] {
+			wordPositions[normalized] = append(wordPositions[normalized], pos)
+		}
+	}
+
+	if len(wordPositions) == 0 {
+		return nil
+	}
+
+	return selectOptimalSnippets(words, wordPositions, windowSize)
+}
+
+func selectOptimalSnippets(words []string, wordPositions map[string][]int, windowSize int) []string {
+	var snippets []string
+	coveredWords := make(map[string]bool)
 	totalWords := len(words)
-	if totalWords == 0 {
-		return ""
-	}
 
-	if windowSize > totalWords {
-		windowSize = totalWords
-	}
+	for len(coveredWords) < len(wordPositions) {
+		bestCoverage := 0
+		bestStart := 0
+		bestEnd := 0
+		newlyCovered := make(map[string]bool)
 
-	var (
-		bestScore int
-		bestStart int
-		mu        sync.Mutex
-	)
+		for word, positions := range wordPositions {
+			if coveredWords[word] {
+				continue
+			}
 
-	numWorkers := runtime.NumCPU()
-	chunkSize := totalWords / numWorkers
-	if chunkSize < windowSize {
-		chunkSize = windowSize
-	}
+			for _, pos := range positions {
+				start := max(0, pos-windowSize/2)
+				end := min(totalWords, pos+windowSize/2)
 
-	var wg sync.WaitGroup
-	for i := 0; i < numWorkers; i++ {
-		start := i * chunkSize
-		end := start + chunkSize + windowSize
-		if end > totalWords {
-			end = totalWords
-		}
-		if start >= end {
-			continue
-		}
-
-		wg.Add(1)
-		go func(start, end int) {
-			defer wg.Done()
-
-			localBestScore := -1
-			localBestStart := 0
-
-			for i := start; i <= end-windowSize/2; i++ {
-				score := 0
-				for j := i; j < i+windowSize/2 && j < totalWords; j++ {
-					word := pkg.NormalizeString(words[j])
-					for _, qWord := range queryWords {
-						if word == qWord {
-							score++
+				currentCoverage := 0
+				currentNewlyCovered := make(map[string]bool)
+				for w, ps := range wordPositions {
+					if coveredWords[w] {
+						continue
+					}
+					for _, p := range ps {
+						if p >= start && p < end {
+							currentCoverage++
+							currentNewlyCovered[w] = true
 							break
 						}
 					}
 				}
 
-				if score >= localBestScore {
-					localBestScore = score
-					localBestStart = i
+				if currentCoverage > bestCoverage ||
+					(currentCoverage == bestCoverage && (end-start) < (bestEnd-bestStart)) {
+					bestCoverage = currentCoverage
+					bestStart = start
+					bestEnd = end
+					newlyCovered = currentNewlyCovered
 				}
 			}
+		}
 
-			mu.Lock()
-			if localBestScore > bestScore ||
-				(localBestScore == bestScore && localBestStart < bestStart) {
-				bestScore = localBestScore
-				bestStart = localBestStart
-			}
-			mu.Unlock()
-		}(start, end)
+		if bestCoverage == 0 {
+			break
+		}
+
+		snippets = append(snippets, strings.Join(words[bestStart:bestEnd], " "))
+		for word := range newlyCovered {
+			coveredWords[word] = true
+		}
 	}
 
-	wg.Wait()
-
-	snippetEnd := bestStart + windowSize/2
-	if snippetEnd > totalWords {
-		snippetEnd = totalWords
-	}
-
-	snippetStart := bestStart - windowSize/2
-	if snippetStart < 0 {
-		snippetStart = 0
-	}
-
-	return strings.Join(words[snippetStart:snippetEnd], " ")
+	return snippets
 }
 
 const docDirPath = "data/raw"
