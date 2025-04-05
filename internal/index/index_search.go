@@ -24,6 +24,7 @@ type SearchResult struct {
 	DocID   int64
 	Score   float64
 	Snippet string
+	URL     string
 }
 
 func NewSearchEngine(index *indexData) *SearchEngine {
@@ -173,6 +174,7 @@ func (s *SearchEngine) Search(query string, numResults, windowSize int) []Search
 			DocID:   ds.docID,
 			Score:   ds.cosineScore * (1 + ds.coverageScore),
 			Snippet: strings.Join(snippets, " ... "),
+			URL:     s.index.docID2link[ds.docID],
 		}
 	}
 

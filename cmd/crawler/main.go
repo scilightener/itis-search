@@ -192,6 +192,7 @@ func printSingleResult(position int, result index.SearchResult, queryWords []str
 	}
 
 	color.Blue("%d. Документ %d (релевантность: %.2f)", position, result.DocID, result.Score)
+	fmt.Printf("   URL: %s\n", result.URL)
 	fmt.Printf("   Сниппет: %s\n", builder.String())
 	color.White("   " + strings.Repeat("─", 60))
 }
